@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=67.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "packaging_example"
+version = "0.0.7"
+
+authors = [
+  { name="Per Stoffer Jensen", email="perstofferjensen@gmail.com" },
+]
+description = "python packaging examples"
+requires-python = ">=3.9"
+
+dependencies = [
+    "pandas",
+]
+
+[tool.black]
+line-length = 122
+
+[tool.isort]
+line_length = 122
+profile = "black"
+
+[project.optional-dependencies]
+dev = [
+    "flake8",
+    "black",
+    "isort",
+    "build",
+    "wheel",
+    "pytest",
+    "ipython",
+    "ipykernel",
+    "pyinstaller",
+    "tomli",
+    "setuptools>=67.2",
+]
+
+[project.scripts]
+hello1 = "packaging_example.my_module:hello"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["*.csv"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,12 @@
+venv
+build
+dist
+.pytest_cache
+__pycache__
+.vscode
+*.egg-info
+*.whl
+tmp*
+*.spec
+words
+.vscode/launch.json
