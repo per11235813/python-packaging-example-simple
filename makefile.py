@@ -1,11 +1,12 @@
-import sys
-from itertools import chain
-from pathlib import Path
-from utils.makefileutils import run, rm, exec_make
 import os
+import sys
+from pathlib import Path
+
+from utils.makefileutils import exec_make, rm, run
 
 venv_name = "venv"
-wheels_dir  =  r"\\md-man.biz\project-cph\bwcph\wheelhouse_3_10"
+wheels_dir = r"\\md-man.biz\project-cph\bwcph\wheelhouse_3_10"
+
 
 def venv():
     """Create or update venv"""
@@ -18,23 +19,20 @@ def venv():
     if "PIP_INDEX_URL" in os.environ:
         run(f"python -m pip install -U pip")
         run("pip freeze > tmp-requirements.old.txt")
-        run("pip-compile --no-annotate --no-emit-index-url -o tmp-requirements.dev.txt --extra dev pyproject.toml requirements.in")
+        run("pip-compile --no-annotate --no-emit-index-url --allow-unsafe -o tmp-requirements.dev.txt --extra dev pyproject.toml requirements.in")
         run("pip-sync tmp-requirements.dev.txt")
 
-    else: 
+    else:
         pip_ini = Path(venv_name) / "pip.ini"
         pip_ini.write_text(f"[install]\nno-index = true\nfind-links = {wheels_dir}")
-
         run(f"python -m pip install -U pip")
         run(f"python -m pip install -e .[dev]")
-
 
 
 def build():
     """Re-build wheel"""
     # setuptools isolation if there is not index
-    isolated = "" if "PIP_INDEX_URL" in os.environ else "--no-isolation"
-    run(f"python -m build --wheel {isolated}")
+    run(f"python -m build --wheel --no-isolation")
 
 
 def pytest():
