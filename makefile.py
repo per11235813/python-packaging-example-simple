@@ -1,35 +1,40 @@
-import datetime as dt
-import re
-import shutil
 import sys
-import tempfile
 from itertools import chain
 from pathlib import Path
-from subprocess import PIPE, CalledProcessError, Popen
+from utils.makefileutils import run, rm, exec_make
+import os
 
 venv_name = "venv"
-activate = rf".\{venv_name}\Scripts\activate.bat & "
-wheelhouse_folder = r"\\md-man.biz\project-cph\bwcph\wheelhouse_3_10"
-pip_ini = Path(venv_name) / "pip.ini"
-pip_ini_txt = f"[install]\nno-index = true\nfind-links = {wheelhouse_folder}"
-
+wheels_dir  =  r"\\md-man.biz\project-cph\bwcph\wheelhouse_3_10"
 
 def venv():
     """Create or update venv"""
 
-    if Path(venv_name).exists():
-        print("venv exists, exiting")
-        return
+    if not Path(venv_name).exists():
+        run(f"{sys.executable} -m venv {venv_name}", venv=None)
+        if "PIP_INDEX_URL" in os.environ:
+            run("pip install pip-tools")
 
-    run(f"{sys.executable} -m venv {venv_name}")
-    pip_ini.write_text(pip_ini_txt)
-    run(f"{activate} python -m pip install -U pip")
-    run(f"{activate} python -m pip install -e .[dev]")
+    if "PIP_INDEX_URL" in os.environ:
+        run(f"python -m pip install -U pip")
+        run("pip freeze > tmp-requirements.old.txt")
+        run("pip-compile --no-annotate --no-emit-index-url -o tmp-requirements.dev.txt --extra dev pyproject.toml requirements.in")
+        run("pip-sync tmp-requirements.dev.txt")
+
+    else: 
+        pip_ini = Path(venv_name) / "pip.ini"
+        pip_ini.write_text(f"[install]\nno-index = true\nfind-links = {wheels_dir}")
+
+        run(f"python -m pip install -U pip")
+        run(f"python -m pip install -e .[dev]")
+
 
 
 def build():
     """Re-build wheel"""
-    run(f"{activate} python -m build --wheel --no-isolation")
+    # setuptools isolation if there is not index
+    isolated = "" if "PIP_INDEX_URL" in os.environ else "--no-isolation"
+    run(f"python -m build --wheel {isolated}")
 
 
 def pytest():
@@ -39,15 +44,8 @@ def pytest():
 
 def clean():
     """Cleanup build artifacts"""
-    src = Path("src")
-    to_remove = chain(
-        ("dist", "build", "packaging-example.spec"),
-        src.glob("**/__pycache__"),
-        src.glob("**/*.egg-info"),
-    )
-
-    for d in to_remove:
-        rm(d)
+    rm("dist")
+    rm("build")
 
 
 def clean_all():
@@ -64,49 +62,5 @@ actions = {
     "clean-all": clean_all,
 }
 
-####################################
-#####  Boilerplate starts here
-####################################
-
-
-def run(cmd: str, echo_cmd=True, echo_stdout=True, cwd: Path = None) -> str:
-    """Run shell command with option to print stdout incrementally"""
-    echo_cmd and print(f"##\n## Running: {cmd}", end="")
-    cwd and print(f"\n## cwd: {cwd}")
-    echo_cmd and print(f"\n")
-
-    res = []
-    proc = Popen(cmd, stdout=PIPE, stderr=sys.stderr, shell=True, encoding=sys.getfilesystemencoding(), cwd=cwd)
-    while proc.poll() is None:
-        line = proc.stdout.readline()
-        echo_stdout and print(line, end="")
-        res.append(line)
-
-    if proc.returncode != 0:
-        raise CalledProcessError(proc.returncode, cmd)
-
-    return "".join(res)
-
-
-def rm(path: Path | str, echo_cmd: bool = True):
-    """Remove file or folder"""
-    if isinstance(path, str):
-        path = Path(path)
-    echo_cmd and print(f"## Removing: {path}")
-    if path.is_file():
-        path.unlink()
-    elif path.is_dir():
-        shutil.rmtree(path)
-
-
 if __name__ == "__main__":
-    cmd = sys.argv[0]
-    sub_cmd = sys.argv[1] if len(sys.argv) == 2 else None
-
-    if sub_cmd in actions and sub_cmd:
-        actions[sub_cmd]()
-    else:
-        print(f"Options for '{sys.executable} {cmd}':")
-        for arg, func in actions.items():
-            doc_str = func.__doc__.split("\n")[0] if func.__doc__ else ""
-            print(f"   {arg: <18}{doc_str}")
+    exec_make(actions)

@@ -31,11 +31,11 @@ dev = [
     "build",
     "wheel",
     "pytest",
-    "ipython",
     "ipykernel",
-    "pyinstaller",
     "tomli",
     "setuptools>=67.2",
+    "pip-tools",
+    "pipdeptree",
 ]
 
 [project.scripts]
